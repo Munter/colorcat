@@ -34,10 +34,30 @@ window.onload = function () {
         backgrounds.forEach(function (prop) {
             var val = cs.getPropertyCSSValue(prop).cssText;
             if (val !== 'none' && val !== 'rgba(0, 0, 0, 0)') {
-                styles.push({
-                    property: prop,
-                    value: one.color.parse(val)
-                });
+                var color = one.color.parse(val);
+                if (color) {
+                    styles.push({
+                        property: prop,
+                        value: one.color.parse(val)
+                    });
+                } else {
+                    var colorStrings = val.match(/rgba?\([^\(]+?\)/g),
+                        colors = colorStrings.map(function (rgbaStr) {
+                            return one.color.parse(rgbaStr);
+                        });
+
+                    for (var i = 0; i < colorStrings.length; i+=1) {
+                        val = val.replace(colorStrings[i], '[' + i + ']');
+                    }
+
+                    styles.push({
+                        property: prop,
+                        value: {
+                            tpl: val,
+                            colors: colors
+                        }
+                    });
+                }
             }
         });
         directions.forEach(function (dir) {
@@ -61,8 +81,14 @@ window.onload = function () {
     var colorize = function (fn) {
         colorElements.forEach(function (item) {
             item.styles.forEach(function (style) {
-                if (style.value) {
+                if (style.value.isColor) {
                     item.el.style[style.property] = fn(style.value).toCSSWithAlpha();
+                } else if (style.value.colors) {
+                    var val = style.value.tpl;
+                    style.value.colors.forEach(function (color, idx) {
+                        val = val.replace('[' + idx + ']', fn(color).toCSSWithAlpha());
+                    });
+                    item.el.style[style.property] = val;
                 }
             });
         });
@@ -106,14 +132,4 @@ window.onload = function () {
         input.onchange = handler;
         return input;
     });
-
-/*
-    setInterval(function () {
-        var date = new Date().getTime();
-
-        colorize(function (color) {
-            return color.adjustHue(date / 10000);
-        });
-    }, 100);
-*/
 };
